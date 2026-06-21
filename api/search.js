@@ -126,7 +126,7 @@ export default async function handler(req, res) {
       messages: [{ role: "user", content: question }],
     });
 
-    const sql = sqlResponse.content[0].text.trim();
+    const sql = sqlResponse.content[0].text.trim().replace(/;+$/, '');
     console.log("Generated SQL:", sql);
 
     // Step 2: Run the SQL against Supabase
