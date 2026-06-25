@@ -1,11 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { createClient } from "@supabase/supabase-js";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_KEY
-);
 
 const SCHEMA = `
 You are a SQL expert helping query an Australian charity database.
@@ -20,6 +15,7 @@ TABLE: charities
 - "Charity_Website" text
 - "Charity_Size" text (Small, Medium, Large, Extra Large)
 - "Date_Organisation_Established" text
+- "Registration_Date" text
 - "People_at_risk_of_homelessness" text (Y or null)
 - "People_with_Disabilities" text (Y or null)
 - "Youth" text (Y or null)
@@ -27,6 +23,10 @@ TABLE: charities
 - "Advancing_Health" text (Y or null)
 - "Advancing_Religion" text (Y or null)
 - "Advancing_social_or_public_welfare" text (Y or null)
+- "Advancing_Culture" text (Y or null)
+- "Advancing_natual_environment" text (Y or null)
+- "Promoting_or_protecting_human_rights" text (Y or null)
+- "Preventing_or_relieving_suffering_of_animals" text (Y or null)
 - "Financially_Disadvantaged" text (Y or null)
 - "Aboriginal_or_TSI" text (Y or null)
 - "Families" text (Y or null)
@@ -46,12 +46,19 @@ TABLE: financials
 - "net surplus/deficit" text
 - "donations and bequests" text
 - "revenue from government" text
+- "revenue from goods and services" text
+- "revenue from investments" text
+- "all other revenue" text
 - "total assets" text
+- "total liabilities" text
 - "net assets/liabilities" text
 - "total full time equivalent staff" text
 - "staff - volunteers" text
 - "employee expenses" text
+- "grants and donations made for use in Australia" text
+- "grants and donations made for use outside Australia" text
 - "Key Management Personnel" text
+- "Number of Key Management Personnel" text
 - "Total paid to Key Management Personnel" text
 - "fin report from" text
 - "fin report to" text
@@ -92,7 +99,7 @@ TABLE: programs
 - "Other charities" text (Y or N)
 - "People from a culturally and linguistically diverse background" text (Y or N)
 
-RULES:
+GENERAL RULES:
 - Always return valid PostgreSQL
 - For location searches on programs use: "Operating Location 1" ILIKE '%suburb%'
 - For location searches on charities use: "Town_City" ILIKE '%suburb%'
@@ -101,11 +108,41 @@ RULES:
 - Always join programs to charities on programs."ABN" = charities."ABN"
 - Always join financials to charities on financials."abn" = charities."ABN"
 - Limit results to 20 unless asked for more
-- Return only the SQL query, no explanation, no markdown, no backticks
+- Return only SQL, no explanation, no markdown, no backticks
+
+SPECIFIC CHARITY LOOKUP RULES:
+- When the user asks about a specific named charity (e.g. "tell me about X", "give me details on X", "everything about X"), search using ILIKE on "Charity_Legal_Name"
+- For specific charity lookups always write TWO queries separated by exactly this text on its own line: ---PROGRAMS---
+- Query 1: join charities and financials, return ALL columns from both tables for that charity
+- Query 2: select "Program name", "Classification", "Operating Location 1", "Charity weblink" from programs where "ABN" matches
+
+Example for "tell me about Fred Hollows Foundation":
+SELECT c.*, f.* FROM charities c LEFT JOIN financials f ON f."abn" = c."ABN" WHERE c."Charity_Legal_Name" ILIKE '%fred hollows%' LIMIT 5
+---PROGRAMS---
+SELECT p."Program name", p."Classification", p."Operating Location 1", p."Charity weblink" FROM programs p WHERE p."ABN" = (SELECT "ABN" FROM charities WHERE "Charity_Legal_Name" ILIKE '%fred hollows%' LIMIT 1)
 `;
 
+async function runSQL(sql) {
+  const url = `${process.env.SUPABASE_URL}/rest/v1/rpc/run_query`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "apikey": process.env.SUPABASE_KEY,
+      "Authorization": `Bearer ${process.env.SUPABASE_KEY}`,
+    },
+    body: JSON.stringify({ query: sql }),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Supabase error: ${text}`);
+  }
+
+  return response.json();
+}
+
 export default async function handler(req, res) {
-  // Allow CORS so your website can call this API
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
@@ -121,50 +158,64 @@ export default async function handler(req, res) {
     // Step 1: Convert natural language to SQL
     const sqlResponse = await anthropic.messages.create({
       model: "claude-sonnet-4-6",
-      max_tokens: 1000,
+      max_tokens: 1500,
       system: SCHEMA,
       messages: [{ role: "user", content: question }],
     });
 
-    const sql = sqlResponse.content[0].text.trim().replace(/;+$/, '');
-    console.log("Generated SQL:", sql);
+    const rawSQL = sqlResponse.content[0].text.trim().replace(/;+$/, "");
+    console.log("Generated SQL:", rawSQL);
 
-    // Step 2: Run the SQL against Supabase
-    const { data, error } = await supabase.rpc("run_query", { query: sql });
+    // Step 2: Check if we have two queries (specific charity lookup)
+    const parts = rawSQL.split("---PROGRAMS---");
+    const mainSQL = parts[0].trim().replace(/;+$/, "");
+    const programsSQL = parts[1] ? parts[1].trim().replace(/;+$/, "") : null;
 
+    // Run main query
     let results;
-    if (error) {
-      // Fallback: try direct query if rpc fails
-      console.error("RPC error:", error);
+    try {
+      results = await runSQL(mainSQL);
+    } catch (dbErr) {
       return res.status(500).json({
         error: "Database query failed",
-        sql,
-        detail: error.message,
+        sql: mainSQL,
+        detail: dbErr.message,
       });
-    } else {
-      results = data;
+    }
+
+    // Run programs query if present
+    let programs = null;
+    if (programsSQL) {
+      try {
+        programs = await runSQL(programsSQL);
+      } catch (e) {
+        console.error("Programs query failed:", e.message);
+      }
     }
 
     // Step 3: Summarise results in plain English
     const summaryResponse = await anthropic.messages.create({
       model: "claude-sonnet-4-6",
-      max_tokens: 1000,
+      max_tokens: 1500,
       messages: [
         {
           role: "user",
           content: `The user asked: "${question}"
-          
-The database returned ${results?.length ?? 0} results:
-${JSON.stringify(results?.slice(0, 10), null, 2)}
 
-Write a brief, helpful 2-3 sentence summary of what was found. Be specific about numbers and names. If no results, say so and suggest a broader search.`,
+Main results (${results?.length ?? 0} rows):
+${JSON.stringify(results?.slice(0, 5), null, 2)}
+
+${programs ? `Programs (${programs.length} programs):
+${JSON.stringify(programs, null, 2)}` : ""}
+
+Write a clear, detailed summary of what was found. For a specific charity include: what they do, their financials (revenue, expenses, surplus/deficit, donations vs government funding), staff numbers, and list their programs. Format numbers as dollars with commas. Be specific and informative.`,
         },
       ],
     });
 
     const summary = summaryResponse.content[0].text;
+    return res.status(200).json({ summary, results, programs, sql: mainSQL });
 
-    return res.status(200).json({ summary, results, sql });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: err.message });
