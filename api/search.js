@@ -155,16 +155,17 @@ export default async function handler(req, res) {
   if (!question) return res.status(400).json({ error: "No question provided" });
 
   try {
-    // Step 1: Convert natural language to SQL
+    // Step 1: Convert natural language to SQL (Haiku is sufficient for SQL generation)
     const sqlResponse = await anthropic.messages.create({
       model: "claude-haiku-4-5-20251001",
-      max_tokens: 1500,
+      max_tokens: 500,
       system: SCHEMA,
       messages: [{ role: "user", content: question }],
     });
 
     const rawSQL = sqlResponse.content[0].text.trim().replace(/;+$/, "");
     console.log("Generated SQL:", rawSQL);
+    console.log("SQL tokens:", sqlResponse.usage);
 
     // Step 2: Check if we have two queries (specific charity lookup)
     const parts = rawSQL.split("---PROGRAMS---");
@@ -192,54 +193,47 @@ export default async function handler(req, res) {
         console.error("Programs query failed:", e.message);
       }
     }
+
     // No results check
     if (results?.length === 0) {
-      return res.status(200).json({ summary: "No charities found matching your search. Try different keywords.", results: [], programs: null });
-    } 
-    // Step 3: Summarise results in plain English
+      return res.status(200).json({
+        summary: "No charities found matching your search. Try different keywords.",
+        results: [],
+        programs: null
+      });
+    }
+
+    // Step 3: Summarise results in plain English (Sonnet for quality summaries)
     const summaryResponse = await anthropic.messages.create({
       model: "claude-sonnet-4-6",
       max_tokens: 2000,
       messages: [
         {
           role: "user",
-          /*
           content: `The user asked: "${question}"
 
 Main results (${results?.length ?? 0} rows):
-${JSON.stringify(results?.slice(0, 5), null, 2)}
+${JSON.stringify(results?.slice(0, 20), null, 2)}
 
 ${programs ? `Programs (${programs.length} programs):
 ${JSON.stringify(programs.slice(0, 10), null, 2)}` : ""}
-
-Write a clear, detailed summary of what was found. For a specific charity include: what they do, their financials (revenue, expenses, surplus/deficit, donations vs government funding), staff numbers, and list their programs. Format numbers as dollars with commas. Be specific and informative.`,
-       */
-
-          /* replaced above with this **/
-content: `The user asked: "${question}"
-
-Main results (${results?.length ?? 0} rows):
-${JSON.stringify(results?.slice(0, 5), null, 2)}
-
-${programs ? `Programs (${programs.length} programs):
-${JSON.stringify(programs, null, 2)}` : ""}
 
 Write a clear summary of what was found. For a specific charity include:
 - Organisation overview (name, ABN, size, location, website, established date)
 - Mission and purpose — what they do and who they help (beneficiaries)
 - Key impact highlights from "how purposes were pursued" if available
 - A brief financial narrative (e.g. total revenue, whether donation-dependent, surplus/deficit) but DO NOT include a detailed financial table — financials are shown separately
-- Staff overview (FTE, volunteers, board size) 
+- Staff overview (FTE, volunteers, board size)
 - DO NOT list programs — these are shown separately
 
-Format numbers as dollars with commas. Be concise and informative.`,
+For list results (multiple charities) give a concise overview of what was found and any interesting patterns.
 
-          
-          
+Format numbers as dollars with commas. Be concise and informative.`,
         },
       ],
     });
 
+    console.log("Summary tokens:", summaryResponse.usage);
     const summary = summaryResponse.content[0].text;
     return res.status(200).json({ summary, results, programs, sql: mainSQL });
 
