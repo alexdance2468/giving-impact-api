@@ -192,11 +192,14 @@ export default async function handler(req, res) {
         console.error("Programs query failed:", e.message);
       }
     }
-
+    // No results check
+    if (results?.length === 0) {
+      return res.status(200).json({ summary: "No charities found matching your search. Try different keywords.", results: [], programs: null });
+    } 
     // Step 3: Summarise results in plain English
     const summaryResponse = await anthropic.messages.create({
       model: "claude-sonnet-4-6",
-      max_tokens: 1500,
+      max_tokens: 2000,
       messages: [
         {
           role: "user",
@@ -207,7 +210,7 @@ Main results (${results?.length ?? 0} rows):
 ${JSON.stringify(results?.slice(0, 5), null, 2)}
 
 ${programs ? `Programs (${programs.length} programs):
-${JSON.stringify(programs, null, 2)}` : ""}
+${JSON.stringify(programs.slice(0, 10), null, 2)}` : ""}
 
 Write a clear, detailed summary of what was found. For a specific charity include: what they do, their financials (revenue, expenses, surplus/deficit, donations vs government funding), staff numbers, and list their programs. Format numbers as dollars with commas. Be specific and informative.`,
        */
