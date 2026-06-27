@@ -226,7 +226,10 @@ Write a clear summary of what was found. For a specific charity include:
 - Staff overview (FTE, volunteers, board size)
 - DO NOT list programs — these are shown separately
 
-For list results (multiple charities) give a concise overview of what was found and any interesting patterns.
+For list results (multiple charities) give a concise overview of what was found and any interesting patterns. Present any ranked or tabular data as a numbered list like:
+1. **Victorian Catholic Education Authority** (VIC) — $3,427,701,478
+2. **University of Sydney** (NSW) — $3,295,880,101
+Do NOT use markdown tables — use numbered lists only.
 
 Format numbers as dollars with commas. Be concise and informative.`,
         },
