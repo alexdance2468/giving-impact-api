@@ -200,6 +200,7 @@ export default async function handler(req, res) {
       messages: [
         {
           role: "user",
+          /*
           content: `The user asked: "${question}"
 
 Main results (${results?.length ?? 0} rows):
@@ -209,6 +210,29 @@ ${programs ? `Programs (${programs.length} programs):
 ${JSON.stringify(programs, null, 2)}` : ""}
 
 Write a clear, detailed summary of what was found. For a specific charity include: what they do, their financials (revenue, expenses, surplus/deficit, donations vs government funding), staff numbers, and list their programs. Format numbers as dollars with commas. Be specific and informative.`,
+       */
+
+          /* replaced above with this **/
+content: `The user asked: "${question}"
+
+Main results (${results?.length ?? 0} rows):
+${JSON.stringify(results?.slice(0, 5), null, 2)}
+
+${programs ? `Programs (${programs.length} programs):
+${JSON.stringify(programs, null, 2)}` : ""}
+
+Write a clear summary of what was found. For a specific charity include:
+- Organisation overview (name, ABN, size, location, website, established date)
+- Mission and purpose — what they do and who they help (beneficiaries)
+- Key impact highlights from "how purposes were pursued" if available
+- A brief financial narrative (e.g. total revenue, whether donation-dependent, surplus/deficit) but DO NOT include a detailed financial table — financials are shown separately
+- Staff overview (FTE, volunteers, board size) 
+- DO NOT list programs — these are shown separately
+
+Format numbers as dollars with commas. Be concise and informative.`,
+
+          
+          
         },
       ],
     });
