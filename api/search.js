@@ -109,6 +109,9 @@ GENERAL RULES:
 - Always join financials to charities on financials."abn" = charities."ABN"
 - Limit results to 20 unless asked for more
 - Return only SQL, no explanation, no markdown, no backticks
+- For general charity searches ALWAYS query the charities table joined with financials — never query programs table alone
+- ALWAYS include c."Charity_Legal_Name", c."Town_City", c."State", c."ABN" in SELECT for any general search
+- For beneficiary/cause searches (e.g. Aboriginal, disability, youth) use the Y/N fields on the charities table, joined with financials, e.g: SELECT c."Charity_Legal_Name", c."ABN", c."Town_City", c."State", c."Charity_Size", f."total revenue", f."donations and bequests" FROM charities c JOIN financials f ON f."abn" = c."ABN" WHERE c."Aboriginal_or_TSI" = 'Y' ORDER BY f."total revenue"::numeric DESC LIMIT 20
 
 SPECIFIC CHARITY LOOKUP RULES:
 - When the user asks about a specific named charity (e.g. "tell me about X", "give me details on X", "everything about X"), search using ILIKE on "Charity_Legal_Name"
