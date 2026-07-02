@@ -113,21 +113,20 @@ GENERAL RULES:
 - ALWAYS include c."Charity_Legal_Name", c."Town_City", c."State", c."ABN" in SELECT for any general search
 
 BENEFICIARY/CAUSE SEARCH RULES:
-- For any search by beneficiary or cause (e.g. Aboriginal, disability, youth, environment, homelessness, aged, veterans, refugees, animals, mental health) ALWAYS apply a triple filter:
+- For any search by beneficiary or cause (e.g. Aboriginal, disability, youth, environment, homelessness, aged, veterans, refugees, animals, mental health) apply a dual filter:
   1. The relevant Y/N flag on the charities table = 'Y'
-  2. The matching Y/N flag on the programs table = 'Y' (join programs on ABN)
-  3. A keyword match in financials."how purposes were pursued" using ILIKE
-- Use DISTINCT to avoid duplicate rows from the programs join
-- When using DISTINCT, wrap in a subquery to sort by revenue: SELECT * FROM (...subquery...) sub ORDER BY sub."total revenue"::numeric DESC NULLS LAST LIMIT 20
+  2. A keyword match in financials."how purposes were pursued" using ILIKE
+- Join charities and financials only — do NOT join programs table for cause searches as it causes timeouts
+- Order by total revenue descending
 
 Example for Aboriginal/TSI charities:
-SELECT * FROM (SELECT DISTINCT c."Charity_Legal_Name", c."ABN", c."Town_City", c."State", c."Charity_Size", f."total revenue", f."donations and bequests" FROM charities c JOIN financials f ON f."abn" = c."ABN" JOIN programs p ON p."ABN" = c."ABN" WHERE c."Aboriginal_or_TSI" = 'Y' AND p."Aboriginal and Torres Strait Islander people" = 'Y' AND (f."how purposes were pursued" ILIKE '%aboriginal%' OR f."how purposes were pursued" ILIKE '%indigenous%' OR f."how purposes were pursued" ILIKE '%torres strait%')) sub ORDER BY sub."total revenue"::numeric DESC NULLS LAST LIMIT 20
+SELECT c."Charity_Legal_Name", c."ABN", c."Town_City", c."State", c."Charity_Size", f."total revenue", f."donations and bequests" FROM charities c JOIN financials f ON f."abn" = c."ABN" WHERE c."Aboriginal_or_TSI" = 'Y' AND (f."how purposes were pursued" ILIKE '%aboriginal%' OR f."how purposes were pursued" ILIKE '%indigenous%' OR f."how purposes were pursued" ILIKE '%torres strait%') ORDER BY f."total revenue"::numeric DESC NULLS LAST LIMIT 20
 
 Example for disability charities:
-SELECT * FROM (SELECT DISTINCT c."Charity_Legal_Name", c."ABN", c."Town_City", c."State", c."Charity_Size", f."total revenue", f."donations and bequests" FROM charities c JOIN financials f ON f."abn" = c."ABN" JOIN programs p ON p."ABN" = c."ABN" WHERE c."People_with_Disabilities" = 'Y' AND p."People with disabilities" = 'Y' AND (f."how purposes were pursued" ILIKE '%disabilit%' OR f."how purposes were pursued" ILIKE '%ndis%')) sub ORDER BY sub."total revenue"::numeric DESC NULLS LAST LIMIT 20
+SELECT c."Charity_Legal_Name", c."ABN", c."Town_City", c."State", c."Charity_Size", f."total revenue", f."donations and bequests" FROM charities c JOIN financials f ON f."abn" = c."ABN" WHERE c."People_with_Disabilities" = 'Y' AND (f."how purposes were pursued" ILIKE '%disabilit%' OR f."how purposes were pursued" ILIKE '%ndis%') ORDER BY f."total revenue"::numeric DESC NULLS LAST LIMIT 20
 
 Example for youth charities:
-SELECT * FROM (SELECT DISTINCT c."Charity_Legal_Name", c."ABN", c."Town_City", c."State", c."Charity_Size", f."total revenue", f."donations and bequests" FROM charities c JOIN financials f ON f."abn" = c."ABN" JOIN programs p ON p."ABN" = c."ABN" WHERE c."Youth" = 'Y' AND p."Youth - 15 to under 25" = 'Y' AND (f."how purposes were pursued" ILIKE '%youth%' OR f."how purposes were pursued" ILIKE '%young people%')) sub ORDER BY sub."total revenue"::numeric DESC NULLS LAST LIMIT 20
+SELECT c."Charity_Legal_Name", c."ABN", c."Town_City", c."State", c."Charity_Size", f."total revenue", f."donations and bequests" FROM charities c JOIN financials f ON f."abn" = c."ABN" WHERE c."Youth" = 'Y' AND (f."how purposes were pursued" ILIKE '%youth%' OR f."how purposes were pursued" ILIKE '%young people%') ORDER BY f."total revenue"::numeric DESC NULLS LAST LIMIT 20
 
 SPECIFIC CHARITY LOOKUP RULES:
 - When the user asks about a specific named charity (e.g. "tell me about X", "give me details on X", "everything about X"), search using ILIKE on "Charity_Legal_Name"
