@@ -176,8 +176,8 @@ export default async function handler(req, res) {
   try {
     // Step 1: Convert natural language to SQL (Haiku is sufficient for SQL generation)
     const sqlResponse = await anthropic.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 1000,
+      model: "claude-sonnet-4-6",
+      max_tokens: 1500,
       system: SCHEMA,
       messages: [{ role: "user", content: question }],
     });
