@@ -192,10 +192,13 @@ export default async function handler(req, res) {
     const programsSQL = parts[1] ? parts[1].trim().replace(/;+$/, "") : null;
 
     // Run main query
+// Run main query
     let results;
     try {
       results = await runSQL(mainSQL);
     } catch (dbErr) {
+      console.error("Database query failed:", dbErr.message);
+      console.error("Failed SQL:", mainSQL);
       return res.status(500).json({
         error: "Database query failed",
         sql: mainSQL,
@@ -257,6 +260,7 @@ Format numbers as dollars with commas. Be concise and informative.`,
     return res.status(200).json({ summary, results, programs, sql: mainSQL });
 
   } catch (err) {
+    console.error("Top level error:", err.message);
     console.error(err);
     return res.status(500).json({ error: err.message });
   }
