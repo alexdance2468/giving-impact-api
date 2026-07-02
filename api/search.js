@@ -113,16 +113,33 @@ GENERAL RULES:
 - ALWAYS include c."Charity_Legal_Name", c."Town_City", c."State", c."ABN" in SELECT for any general search
 
 BENEFICIARY/CAUSE SEARCH RULES:
-- For any search by beneficiary or cause (e.g. Aboriginal, disability, youth, environment, homelessness, aged, veterans, refugees, animals, mental health) ALWAYS apply a triple filter to ensure results are genuinely focused on that cause:
+- For any search by beneficiary or cause (e.g. Aboriginal, disability, youth, environment, homelessness, aged, veterans, refugees, animals, mental health) ALWAYS apply a triple filter:
   1. The relevant Y/N flag on the charities table = 'Y'
   2. The matching Y/N flag on the programs table = 'Y' (join programs on ABN)
   3. A keyword match in financials."how purposes were pursued" using ILIKE
 - Use DISTINCT to avoid duplicate rows from the programs join
-- Use DISTINCT to avoid duplicate rows from the programs join
-- When using DISTINCT, ORDER BY must only use columns that appear in the SELECT list — to sort by revenue use ORDER BY f."total revenue"::numeric DESC NULLS LAST only when f."total revenue" is in the SELECT, or wrap in a subquery like: SELECT * FROM (...) sub ORDER BY sub."total revenue"::numeric DESC NULLS LAST
-`;
+- When using DISTINCT, wrap in a subquery to sort by revenue: SELECT * FROM (...subquery...) sub ORDER BY sub."total revenue"::numeric DESC NULLS LAST LIMIT 20
 
-async function runSQL(sql) {
+Example for Aboriginal/TSI charities:
+SELECT * FROM (SELECT DISTINCT c."Charity_Legal_Name", c."ABN", c."Town_City", c."State", c."Charity_Size", f."total revenue", f."donations and bequests" FROM charities c JOIN financials f ON f."abn" = c."ABN" JOIN programs p ON p."ABN" = c."ABN" WHERE c."Aboriginal_or_TSI" = 'Y' AND p."Aboriginal and Torres Strait Islander people" = 'Y' AND (f."how purposes were pursued" ILIKE '%aboriginal%' OR f."how purposes were pursued" ILIKE '%indigenous%' OR f."how purposes were pursued" ILIKE '%torres strait%')) sub ORDER BY sub."total revenue"::numeric DESC NULLS LAST LIMIT 20
+
+Example for disability charities:
+SELECT * FROM (SELECT DISTINCT c."Charity_Legal_Name", c."ABN", c."Town_City", c."State", c."Charity_Size", f."total revenue", f."donations and bequests" FROM charities c JOIN financials f ON f."abn" = c."ABN" JOIN programs p ON p."ABN" = c."ABN" WHERE c."People_with_Disabilities" = 'Y' AND p."People with disabilities" = 'Y' AND (f."how purposes were pursued" ILIKE '%disabilit%' OR f."how purposes were pursued" ILIKE '%ndis%')) sub ORDER BY sub."total revenue"::numeric DESC NULLS LAST LIMIT 20
+
+Example for youth charities:
+SELECT * FROM (SELECT DISTINCT c."Charity_Legal_Name", c."ABN", c."Town_City", c."State", c."Charity_Size", f."total revenue", f."donations and bequests" FROM charities c JOIN financials f ON f."abn" = c."ABN" JOIN programs p ON p."ABN" = c."ABN" WHERE c."Youth" = 'Y' AND p."Youth - 15 to under 25" = 'Y' AND (f."how purposes were pursued" ILIKE '%youth%' OR f."how purposes were pursued" ILIKE '%young people%')) sub ORDER BY sub."total revenue"::numeric DESC NULLS LAST LIMIT 20
+
+SPECIFIC CHARITY LOOKUP RULES:
+- When the user asks about a specific named charity (e.g. "tell me about X", "give me details on X", "everything about X"), search using ILIKE on "Charity_Legal_Name"
+- For specific charity lookups always write TWO queries separated by exactly this text on its own line: ---PROGRAMS---
+- Query 1: join charities and financials, return ALL columns from both tables for that charity
+- Query 2: select "Program name", "Classification", "Operating Location 1", "Charity weblink" from programs where "ABN" matches
+
+Example for "tell me about Fred Hollows Foundation":
+SELECT c.*, f.* FROM charities c LEFT JOIN financials f ON f."abn" = c."ABN" WHERE c."Charity_Legal_Name" ILIKE '%fred hollows%' LIMIT 5
+---PROGRAMS---
+SELECT p."Program name", p."Classification", p."Operating Location 1", p."Charity weblink" FROM programs p WHERE p."ABN" = (SELECT "ABN" FROM charities WHERE "Charity_Legal_Name" ILIKE '%fred hollows%' LIMIT 1)
+`;
 
 async function runSQL(sql) {
   const url = `${process.env.SUPABASE_URL}/rest/v1/rpc/run_query`;
@@ -157,7 +174,7 @@ export default async function handler(req, res) {
   if (!question) return res.status(400).json({ error: "No question provided" });
 
   try {
-    // Step 1: Convert natural language to SQL (Haiku is sufficient for SQL generation)
+    // Step 1: Convert natural language to SQL
     const sqlResponse = await anthropic.messages.create({
       model: "claude-sonnet-4-6",
       max_tokens: 1500,
@@ -175,7 +192,6 @@ export default async function handler(req, res) {
     const programsSQL = parts[1] ? parts[1].trim().replace(/;+$/, "") : null;
 
     // Run main query
-// Run main query
     let results;
     try {
       results = await runSQL(mainSQL);
@@ -208,7 +224,7 @@ export default async function handler(req, res) {
       });
     }
 
-    // Step 3: Summarise results in plain English (Sonnet for quality summaries)
+    // Step 3: Summarise results in plain English
     const summaryResponse = await anthropic.messages.create({
       model: "claude-sonnet-4-6",
       max_tokens: 2000,
