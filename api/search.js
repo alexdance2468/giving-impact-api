@@ -120,7 +120,9 @@ BENEFICIARY/CAUSE SEARCH RULES:
 - Use DISTINCT to avoid duplicate rows from the programs join
 - Use DISTINCT to avoid duplicate rows from the programs join
 - When using DISTINCT, ORDER BY must only use columns that appear in the SELECT list — to sort by revenue use ORDER BY f."total revenue"::numeric DESC NULLS LAST only when f."total revenue" is in the SELECT, or wrap in a subquery like: SELECT * FROM (...) sub ORDER BY sub."total revenue"::numeric DESC NULLS LAST
+`;
 
+async function runSQL(sql) {
 
 async function runSQL(sql) {
   const url = `${process.env.SUPABASE_URL}/rest/v1/rpc/run_query`;
