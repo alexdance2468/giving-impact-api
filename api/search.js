@@ -118,29 +118,9 @@ BENEFICIARY/CAUSE SEARCH RULES:
   2. The matching Y/N flag on the programs table = 'Y' (join programs on ABN)
   3. A keyword match in financials."how purposes were pursued" using ILIKE
 - Use DISTINCT to avoid duplicate rows from the programs join
+- Use DISTINCT to avoid duplicate rows from the programs join
 - When using DISTINCT, ORDER BY must only use columns that appear in the SELECT list — to sort by revenue use ORDER BY f."total revenue"::numeric DESC NULLS LAST only when f."total revenue" is in the SELECT, or wrap in a subquery like: SELECT * FROM (...) sub ORDER BY sub."total revenue"::numeric DESC NULLS LAST
-- This prevents large generalist organisations (universities, hospitals) appearing in cause-specific searches
 
-Example for Aboriginal/TSI charities:
-SELECT DISTINCT c."Charity_Legal_Name", c."ABN", c."Town_City", c."State", c."Charity_Size", f."total revenue", f."donations and bequests" FROM charities c JOIN financials f ON f."abn" = c."ABN" JOIN programs p ON p."ABN" = c."ABN" WHERE c."Aboriginal_or_TSI" = 'Y' AND p."Aboriginal and Torres Strait Islander people" = 'Y' AND (f."how purposes were pursued" ILIKE '%aboriginal%' OR f."how purposes were pursued" ILIKE '%indigenous%' OR f."how purposes were pursued" ILIKE '%torres strait%') ORDER BY f."total revenue"::numeric DESC NULLS LAST LIMIT 20
-
-Example for disability charities:
-SELECT DISTINCT c."Charity_Legal_Name", c."ABN", c."Town_City", c."State", c."Charity_Size", f."total revenue", f."donations and bequests" FROM charities c JOIN financials f ON f."abn" = c."ABN" JOIN programs p ON p."ABN" = c."ABN" WHERE c."People_with_Disabilities" = 'Y' AND p."People with disabilities" = 'Y' AND (f."how purposes were pursued" ILIKE '%disabilit%' OR f."how purposes were pursued" ILIKE '%ndis%') ORDER BY f."total revenue"::numeric DESC NULLS LAST LIMIT 20
-
-Example for youth charities:
-SELECT DISTINCT c."Charity_Legal_Name", c."ABN", c."Town_City", c."State", c."Charity_Size", f."total revenue", f."donations and bequests" FROM charities c JOIN financials f ON f."abn" = c."ABN" JOIN programs p ON p."ABN" = c."ABN" WHERE c."Youth" = 'Y' AND p."Youth - 15 to under 25" = 'Y' AND (f."how purposes were pursued" ILIKE '%youth%' OR f."how purposes were pursued" ILIKE '%young people%') ORDER BY f."total revenue"::numeric DESC NULLS LAST LIMIT 20
-
-SPECIFIC CHARITY LOOKUP RULES:
-- When the user asks about a specific named charity (e.g. "tell me about X", "give me details on X", "everything about X"), search using ILIKE on "Charity_Legal_Name"
-- For specific charity lookups always write TWO queries separated by exactly this text on its own line: ---PROGRAMS---
-- Query 1: join charities and financials, return ALL columns from both tables for that charity
-- Query 2: select "Program name", "Classification", "Operating Location 1", "Charity weblink" from programs where "ABN" matches
-
-Example for "tell me about Fred Hollows Foundation":
-SELECT c.*, f.* FROM charities c LEFT JOIN financials f ON f."abn" = c."ABN" WHERE c."Charity_Legal_Name" ILIKE '%fred hollows%' LIMIT 5
----PROGRAMS---
-SELECT p."Program name", p."Classification", p."Operating Location 1", p."Charity weblink" FROM programs p WHERE p."ABN" = (SELECT "ABN" FROM charities WHERE "Charity_Legal_Name" ILIKE '%fred hollows%' LIMIT 1)
-`;
 
 async function runSQL(sql) {
   const url = `${process.env.SUPABASE_URL}/rest/v1/rpc/run_query`;
