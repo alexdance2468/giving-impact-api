@@ -111,7 +111,23 @@ GENERAL RULES:
 - Return only SQL, no explanation, no markdown, no backticks
 - For general charity searches ALWAYS query the charities table joined with financials — never query programs table alone
 - ALWAYS include c."Charity_Legal_Name", c."Town_City", c."State", c."ABN" in SELECT for any general search
-- For beneficiary/cause searches (e.g. Aboriginal, disability, youth) use the Y/N fields on the charities table, joined with financials, e.g: SELECT c."Charity_Legal_Name", c."ABN", c."Town_City", c."State", c."Charity_Size", f."total revenue", f."donations and bequests" FROM charities c JOIN financials f ON f."abn" = c."ABN" WHERE c."Aboriginal_or_TSI" = 'Y' ORDER BY f."total revenue"::numeric DESC LIMIT 20
+
+BENEFICIARY/CAUSE SEARCH RULES:
+- For any search by beneficiary or cause (e.g. Aboriginal, disability, youth, environment, homelessness, aged, veterans, refugees, animals, mental health) ALWAYS apply a triple filter to ensure results are genuinely focused on that cause:
+  1. The relevant Y/N flag on the charities table = 'Y'
+  2. The matching Y/N flag on the programs table = 'Y' (join programs on ABN)
+  3. A keyword match in financials."how purposes were pursued" using ILIKE
+- Use DISTINCT to avoid duplicate rows from the programs join
+- This prevents large generalist organisations (universities, hospitals) appearing in cause-specific searches
+
+Example for Aboriginal/TSI charities:
+SELECT DISTINCT c."Charity_Legal_Name", c."ABN", c."Town_City", c."State", c."Charity_Size", f."total revenue", f."donations and bequests" FROM charities c JOIN financials f ON f."abn" = c."ABN" JOIN programs p ON p."ABN" = c."ABN" WHERE c."Aboriginal_or_TSI" = 'Y' AND p."Aboriginal and Torres Strait Islander people" = 'Y' AND (f."how purposes were pursued" ILIKE '%aboriginal%' OR f."how purposes were pursued" ILIKE '%indigenous%' OR f."how purposes were pursued" ILIKE '%torres strait%') ORDER BY f."total revenue"::numeric DESC NULLS LAST LIMIT 20
+
+Example for disability charities:
+SELECT DISTINCT c."Charity_Legal_Name", c."ABN", c."Town_City", c."State", c."Charity_Size", f."total revenue", f."donations and bequests" FROM charities c JOIN financials f ON f."abn" = c."ABN" JOIN programs p ON p."ABN" = c."ABN" WHERE c."People_with_Disabilities" = 'Y' AND p."People with disabilities" = 'Y' AND (f."how purposes were pursued" ILIKE '%disabilit%' OR f."how purposes were pursued" ILIKE '%ndis%') ORDER BY f."total revenue"::numeric DESC NULLS LAST LIMIT 20
+
+Example for youth charities:
+SELECT DISTINCT c."Charity_Legal_Name", c."ABN", c."Town_City", c."State", c."Charity_Size", f."total revenue", f."donations and bequests" FROM charities c JOIN financials f ON f."abn" = c."ABN" JOIN programs p ON p."ABN" = c."ABN" WHERE c."Youth" = 'Y' AND p."Youth - 15 to under 25" = 'Y' AND (f."how purposes were pursued" ILIKE '%youth%' OR f."how purposes were pursued" ILIKE '%young people%') ORDER BY f."total revenue"::numeric DESC NULLS LAST LIMIT 20
 
 SPECIFIC CHARITY LOOKUP RULES:
 - When the user asks about a specific named charity (e.g. "tell me about X", "give me details on X", "everything about X"), search using ILIKE on "Charity_Legal_Name"
@@ -229,10 +245,7 @@ Write a clear summary of what was found. For a specific charity include:
 - Staff overview (FTE, volunteers, board size)
 - DO NOT list programs — these are shown separately
 
-For list results (multiple charities) give a concise overview of what was found and any interesting patterns. Present any ranked or tabular data as a numbered list like:
-1. **Victorian Catholic Education Authority** (VIC) — $3,427,701,478
-2. **University of Sydney** (NSW) — $3,295,880,101
-Do NOT use markdown tables — use numbered lists only.
+For list results (multiple charities) give a concise overview of what was found and any interesting patterns.
 
 Format numbers as dollars with commas. Be concise and informative.`,
         },
