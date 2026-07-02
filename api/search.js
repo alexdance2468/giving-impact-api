@@ -118,6 +118,7 @@ BENEFICIARY/CAUSE SEARCH RULES:
   2. The matching Y/N flag on the programs table = 'Y' (join programs on ABN)
   3. A keyword match in financials."how purposes were pursued" using ILIKE
 - Use DISTINCT to avoid duplicate rows from the programs join
+- When using DISTINCT, ORDER BY must only use columns that appear in the SELECT list — to sort by revenue use ORDER BY f."total revenue"::numeric DESC NULLS LAST only when f."total revenue" is in the SELECT, or wrap in a subquery like: SELECT * FROM (...) sub ORDER BY sub."total revenue"::numeric DESC NULLS LAST
 - This prevents large generalist organisations (universities, hospitals) appearing in cause-specific searches
 
 Example for Aboriginal/TSI charities:
