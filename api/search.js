@@ -119,7 +119,6 @@ BENEFICIARY/CAUSE SEARCH RULES:
 - Join charities and financials only — do NOT join programs table for cause searches as it causes timeouts
 - Order by total revenue descending
 
-
 Example for Aboriginal/TSI charities:
 SELECT c."Charity_Legal_Name", c."ABN", c."Town_City", c."State", c."Charity_Size", c."Charity_Website", f."total revenue", f."donations and bequests" FROM charities c JOIN financials f ON f."abn" = c."ABN" WHERE c."Aboriginal_or_TSI" = 'Y' AND (f."how purposes were pursued" ILIKE '%aboriginal%' OR f."how purposes were pursued" ILIKE '%indigenous%' OR f."how purposes were pursued" ILIKE '%torres strait%') ORDER BY f."total revenue"::numeric DESC NULLS LAST LIMIT 20
 
@@ -139,6 +138,11 @@ Example for "tell me about Fred Hollows Foundation":
 SELECT c.*, f.* FROM charities c LEFT JOIN financials f ON f."abn" = c."ABN" WHERE c."Charity_Legal_Name" ILIKE '%fred hollows%' LIMIT 5
 ---PROGRAMS---
 SELECT p."Program name", p."Classification", p."Operating Location 1", p."Charity weblink" FROM programs p WHERE p."ABN" = (SELECT "ABN" FROM charities WHERE "Charity_Legal_Name" ILIKE '%fred hollows%' LIMIT 1)
+
+LOCATION SEARCH RULES:
+- When multiple suburbs are provided (e.g. "also include results from these nearby suburbs: X, Y, Z"), generate OR conditions for each suburb
+- For charities table use: (c."Town_City" ILIKE '%suburb1%' OR c."Town_City" ILIKE '%suburb2%' OR ...)
+- For programs table use: (p."Operating Location 1" ILIKE '%suburb1%' OR p."Operating Location 1" ILIKE '%suburb2%' OR ...)
 `;
 
 async function runSQL(sql) {
@@ -161,6 +165,33 @@ async function runSQL(sql) {
   return response.json();
 }
 
+async function expandSuburbs(question) {
+  const response = await anthropic.messages.create({
+    model: "claude-sonnet-4-6",
+    max_tokens: 200,
+    messages: [{
+      role: "user",
+      content: `Analyse this search query: "${question}"
+      
+If it mentions a specific Australian suburb or area (e.g. "near Chatswood", "in Parramatta"), return a JSON object with:
+- "detected": true
+- "suburbs": an array of 6-8 nearby suburbs including the original (use real Australian suburbs)
+- "original": the original suburb name
+
+If no suburb is mentioned, return: { "detected": false }
+
+Return ONLY valid JSON, no explanation, no markdown.`
+    }]
+  });
+
+  try {
+    const text = response.content[0].text.trim();
+    return JSON.parse(text);
+  } catch {
+    return { detected: false };
+  }
+}
+
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
@@ -174,12 +205,22 @@ export default async function handler(req, res) {
   if (!question) return res.status(400).json({ error: "No question provided" });
 
   try {
+    // Step 0: Expand suburbs if location mentioned
+    const locationData = await expandSuburbs(question);
+    let enrichedQuestion = question;
+
+    if (locationData.detected && locationData.suburbs?.length) {
+      const suburbList = locationData.suburbs.join(", ");
+      enrichedQuestion = `${question} (also include results from these nearby suburbs: ${suburbList})`;
+      console.log("Expanded suburbs:", suburbList);
+    }
+
     // Step 1: Convert natural language to SQL
     const sqlResponse = await anthropic.messages.create({
       model: "claude-sonnet-4-6",
       max_tokens: 1500,
       system: SCHEMA,
-      messages: [{ role: "user", content: question }],
+      messages: [{ role: "user", content: enrichedQuestion }],
     });
 
     const rawSQL = sqlResponse.content[0].text.trim().replace(/;+$/, "");
