@@ -270,11 +270,10 @@ async function findSimilarCharities(charityName) {
       (${scoreExpression}) AS match_score
     FROM charities c
     JOIN financials f ON f."abn" = c."ABN"
-    WHERE c."ABN" != '${reference['ABN']}'
-      AND c."Charity_Size" = '${reference['Charity_Size'] || ''}'
+WHERE c."ABN" != '${reference['ABN']}'
       AND (${scoreExpression}) >= 2
     ORDER BY match_score DESC, f."total revenue"::numeric DESC NULLS LAST
-    LIMIT 6
+LIMIT 6
   `;
 
   try {
