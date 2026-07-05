@@ -96,7 +96,7 @@ TABLE: programs
 - "People in rural/regional/remote communities" text (Y or N)
 - "Gay, lesbian, bisexual, transgender or intersex persons" text (Y or N)
 - "Pre/post release offenders and/or their families" text (Y or N)
-- "Other charities" text (Y or N)
+- "Other charities" text (Y or null)
 - "People from a culturally and linguistically diverse background" text (Y or N)
 
 GENERAL RULES:
@@ -192,6 +192,99 @@ Return ONLY valid JSON, no explanation, no markdown.`
   }
 }
 
+async function detectSimilarIntent(question) {
+  const response = await anthropic.messages.create({
+    model: "claude-sonnet-4-6",
+    max_tokens: 150,
+    messages: [{
+      role: "user",
+      content: `Analyse this search query: "${question}"
+
+If the user is asking for charities similar to a specific named charity (e.g. "charities similar to Fred Hollows", "find me something like the Salvos", "alternatives to Beyond Blue"), return:
+{ "detected": true, "charityName": "the charity name they mentioned" }
+
+Otherwise return: { "detected": false }
+
+Return ONLY valid JSON, no explanation, no markdown.`
+    }]
+  });
+
+  try {
+    const text = response.content[0].text.trim();
+    return JSON.parse(text);
+  } catch {
+    return { detected: false };
+  }
+}
+
+async function findSimilarCharities(charityName) {
+  // Step 1: Look up the reference charity's flags
+  const lookupSQL = `
+    SELECT c."ABN", c."Charity_Legal_Name", c."State", c."Charity_Size",
+      c."People_at_risk_of_homelessness", c."People_with_Disabilities", c."Youth",
+      c."Advancing_Education", c."Advancing_Health", c."Advancing_Religion",
+      c."Advancing_social_or_public_welfare", c."Advancing_Culture",
+      c."Advancing_natual_environment", c."Promoting_or_protecting_human_rights",
+      c."Preventing_or_relieving_suffering_of_animals", c."Financially_Disadvantaged",
+      c."Aboriginal_or_TSI", c."Families", c."Children", c."Aged_Persons",
+      c."Migrants_Refugees_or_Asylum_Seekers", c."environment", c."animals",
+      c."Veterans_or_their_families", c."Victims_of_Disasters"
+    FROM charities c
+    WHERE c."Charity_Legal_Name" ILIKE '%${charityName.replace(/'/g, "''")}%'
+    LIMIT 1
+  `;
+
+  let reference;
+  try {
+    const rows = await runSQL(lookupSQL);
+    if (!rows || rows.length === 0) return null;
+    reference = rows[0];
+  } catch {
+    return null;
+  }
+
+  // Step 2: Build OR conditions from active flags
+  const flagColumns = [
+    "People_at_risk_of_homelessness", "People_with_Disabilities", "Youth",
+    "Advancing_Education", "Advancing_Health", "Advancing_Religion",
+    "Advancing_social_or_public_welfare", "Advancing_Culture",
+    "Advancing_natual_environment", "Promoting_or_protecting_human_rights",
+    "Preventing_or_relieving_suffering_of_animals", "Financially_Disadvantaged",
+    "Aboriginal_or_TSI", "Families", "Children", "Aged_Persons",
+    "Migrants_Refugees_or_Asylum_Seekers", "environment", "animals",
+    "Veterans_or_their_families", "Victims_of_Disasters"
+  ];
+
+  const activeFlags = flagColumns.filter(col => reference[col] === 'Y');
+  if (activeFlags.length === 0) return null;
+
+  // Match on at least 2 active flags using a CASE score
+  const scoreExpression = activeFlags
+    .map(col => `CASE WHEN c."${col}" = 'Y' THEN 1 ELSE 0 END`)
+    .join(' + ');
+
+  const similarSQL = `
+    SELECT c."Charity_Legal_Name", c."ABN", c."Town_City", c."State",
+      c."Charity_Size", c."Charity_Website", f."total revenue",
+      f."donations and bequests",
+      (${scoreExpression}) AS match_score
+    FROM charities c
+    JOIN financials f ON f."abn" = c."ABN"
+    WHERE c."ABN" != '${reference['ABN']}'
+      AND c."Charity_Size" = '${reference['Charity_Size'] || ''}'
+      AND (${scoreExpression}) >= 2
+    ORDER BY match_score DESC, f."total revenue"::numeric DESC NULLS LAST
+    LIMIT 6
+  `;
+
+  try {
+    const similar = await runSQL(similarSQL);
+    return { reference, similar };
+  } catch {
+    return null;
+  }
+}
+
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
@@ -205,7 +298,35 @@ export default async function handler(req, res) {
   if (!question) return res.status(400).json({ error: "No question provided" });
 
   try {
-    // Step 0: Expand suburbs if location mentioned
+    // Step 0a: Check for "similar to X" intent
+    const similarIntent = await detectSimilarIntent(question);
+    if (similarIntent.detected && similarIntent.charityName) {
+      const similarData = await findSimilarCharities(similarIntent.charityName);
+      if (similarData) {
+        const summaryResponse = await anthropic.messages.create({
+          model: "claude-sonnet-4-6",
+          max_tokens: 800,
+          messages: [{
+            role: "user",
+            content: `The user searched for charities similar to "${similarIntent.charityName}".
+The reference charity is: ${JSON.stringify(similarData.reference)}
+Similar charities found: ${JSON.stringify(similarData.similar)}
+
+Write 2-3 sentences explaining what "${similarIntent.charityName}" does and why these charities are similar (shared causes, beneficiaries, size). Be concise.`
+          }]
+        });
+
+        return res.status(200).json({
+          summary: summaryResponse.content[0].text,
+          results: [],
+          programs: null,
+          similarResults: similarData.similar,
+          similarTo: similarIntent.charityName
+        });
+      }
+    }
+
+    // Step 0b: Expand suburbs if location mentioned
     const locationData = await expandSuburbs(question);
     let enrichedQuestion = question;
 
@@ -269,10 +390,9 @@ export default async function handler(req, res) {
     const summaryResponse = await anthropic.messages.create({
       model: "claude-sonnet-4-6",
       max_tokens: 2000,
-      messages: [
-        {
-          role: "user",
-          content: `The user asked: "${question}"
+      messages: [{
+        role: "user",
+        content: `The user asked: "${question}"
 
 Main results (${results?.length ?? 0} rows):
 ${JSON.stringify(results?.slice(0, 20), null, 2)}
@@ -291,8 +411,7 @@ Write a clear summary of what was found. For a specific charity include:
 For list results (multiple charities) give a concise overview of what was found and any interesting patterns.
 
 Format numbers as dollars with commas. Be concise and informative.`,
-        },
-      ],
+      }]
     });
 
     console.log("Summary tokens:", summaryResponse.usage);
