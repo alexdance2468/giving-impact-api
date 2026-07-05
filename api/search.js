@@ -393,7 +393,7 @@ Write 2-3 sentences explaining what "${similarIntent.charityName}" does and why 
         role: "user",
         content: `The user asked: "${question}"
 
-Main results (${results?.length ?? 0} rows):
+Main results (${results?.length ?? 0} rows, showing first 20 for context):
 ${JSON.stringify(results?.slice(0, 20), null, 2)}
 
 ${programs ? `Programs (${programs.length} programs):
@@ -407,7 +407,7 @@ Write a clear summary of what was found. For a specific charity include:
 - Staff overview (FTE, volunteers, board size)
 - DO NOT list programs — these are shown separately
 
-For list results (multiple charities) give a concise overview of what was found and any interesting patterns.
+For list results (multiple charities) give a concise overview of what was found and any interesting patterns. If there are more than 20 results, note the total count in your summary.
 
 Format numbers as dollars with commas. Be concise and informative.`,
       }]
