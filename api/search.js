@@ -107,7 +107,7 @@ GENERAL RULES:
 - Y/N fields: check with = 'Y'
 - Always join programs to charities on programs."ABN" = charities."ABN"
 - Always join financials to charities on financials."abn" = charities."ABN"
-- Limit results to 20 unless asked for more
+- Limit results to 50 unless asked for more
 - Return only SQL, no explanation, no markdown, no backticks
 - For general charity searches ALWAYS query the charities table joined with financials — never query programs table alone
 - ALWAYS include c."Charity_Legal_Name", c."Town_City", c."State", c."ABN", c."Charity_Website", c."Charity_Size" in SELECT for any general search
@@ -120,13 +120,13 @@ BENEFICIARY/CAUSE SEARCH RULES:
 - Order by total revenue descending
 
 Example for Aboriginal/TSI charities:
-SELECT c."Charity_Legal_Name", c."ABN", c."Town_City", c."State", c."Charity_Size", c."Charity_Website", f."total revenue", f."donations and bequests" FROM charities c JOIN financials f ON f."abn" = c."ABN" WHERE c."Aboriginal_or_TSI" = 'Y' AND (f."how purposes were pursued" ILIKE '%aboriginal%' OR f."how purposes were pursued" ILIKE '%indigenous%' OR f."how purposes were pursued" ILIKE '%torres strait%') ORDER BY f."total revenue"::numeric DESC NULLS LAST LIMIT 20
+SELECT c."Charity_Legal_Name", c."ABN", c."Town_City", c."State", c."Charity_Size", c."Charity_Website", f."total revenue", f."donations and bequests" FROM charities c JOIN financials f ON f."abn" = c."ABN" WHERE c."Aboriginal_or_TSI" = 'Y' AND (f."how purposes were pursued" ILIKE '%aboriginal%' OR f."how purposes were pursued" ILIKE '%indigenous%' OR f."how purposes were pursued" ILIKE '%torres strait%') ORDER BY f."total revenue"::numeric DESC NULLS LAST LIMIT 50
 
 Example for disability charities:
-SELECT c."Charity_Legal_Name", c."ABN", c."Town_City", c."State", c."Charity_Size", c."Charity_Website", f."total revenue", f."donations and bequests" FROM charities c JOIN financials f ON f."abn" = c."ABN" WHERE c."People_with_Disabilities" = 'Y' AND (f."how purposes were pursued" ILIKE '%disabilit%' OR f."how purposes were pursued" ILIKE '%ndis%') ORDER BY f."total revenue"::numeric DESC NULLS LAST LIMIT 20
+SELECT c."Charity_Legal_Name", c."ABN", c."Town_City", c."State", c."Charity_Size", c."Charity_Website", f."total revenue", f."donations and bequests" FROM charities c JOIN financials f ON f."abn" = c."ABN" WHERE c."People_with_Disabilities" = 'Y' AND (f."how purposes were pursued" ILIKE '%disabilit%' OR f."how purposes were pursued" ILIKE '%ndis%') ORDER BY f."total revenue"::numeric DESC NULLS LAST LIMIT 50
 
 Example for youth charities:
-SELECT c."Charity_Legal_Name", c."ABN", c."Town_City", c."State", c."Charity_Size", c."Charity_Website", f."total revenue", f."donations and bequests" FROM charities c JOIN financials f ON f."abn" = c."ABN" WHERE c."Youth" = 'Y' AND (f."how purposes were pursued" ILIKE '%youth%' OR f."how purposes were pursued" ILIKE '%young people%') ORDER BY f."total revenue"::numeric DESC NULLS LAST LIMIT 20
+SELECT c."Charity_Legal_Name", c."ABN", c."Town_City", c."State", c."Charity_Size", c."Charity_Website", f."total revenue", f."donations and bequests" FROM charities c JOIN financials f ON f."abn" = c."ABN" WHERE c."Youth" = 'Y' AND (f."how purposes were pursued" ILIKE '%youth%' OR f."how purposes were pursued" ILIKE '%young people%') ORDER BY f."total revenue"::numeric DESC NULLS LAST LIMIT 50
 
 SPECIFIC CHARITY LOOKUP RULES:
 - When the user asks about a specific named charity (e.g. "tell me about X", "give me details on X", "everything about X"), search using ILIKE on "Charity_Legal_Name"
