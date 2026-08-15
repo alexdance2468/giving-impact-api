@@ -68,7 +68,7 @@ const {
     JOIN financials f ON f."abn" = c."ABN"
     WHERE ${where.join(' AND ')}
     ORDER BY (f."Total paid to Key Management Personnel"::numeric / f."Number of Key Management Personnel"::numeric) DESC NULLS LAST
-    LIMIT 500
+    LIMIT 200
   `;
 
   try {
