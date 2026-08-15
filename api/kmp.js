@@ -7,7 +7,7 @@ export default async function handler(req, res) {
   if (req.method !== "POST")
     return res.status(405).json({ error: "Method not allowed" });
 
-  const {
+const {
     size,
     state,
     cause,
@@ -15,6 +15,7 @@ export default async function handler(req, res) {
     maxRevenue,
     minPay,
     maxPay,
+    name,
   } = req.body;
 
   const CAUSE_MAP = {
@@ -43,6 +44,7 @@ export default async function handler(req, res) {
   ];
 
   if (size)       where.push(`c."Charity_Size" = '${size}'`);
+  if (name)       where.push(`c."Charity_Legal_Name" ILIKE '%${name.replace(/'/g, "''")}%'`);
   if (state)      where.push(`c."State" = '${state}'`);
   if (cause && CAUSE_MAP[cause]) where.push(CAUSE_MAP[cause]);
   if (minRevenue) where.push(`f."total revenue"::numeric >= ${parseFloat(minRevenue) * 1000000}`);
