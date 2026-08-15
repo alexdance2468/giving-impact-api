@@ -32,6 +32,7 @@ const {
   };
 
   const where = [
+    `c."Charity_Legal_Name" NOT ILIKE '%Minaret College%'`,
     `f."Total paid to Key Management Personnel" IS NOT NULL`,
     `f."Total paid to Key Management Personnel" != ''`,
     `f."Number of Key Management Personnel" IS NOT NULL`,
