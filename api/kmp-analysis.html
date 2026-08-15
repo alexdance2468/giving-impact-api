@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Executive Pay Analysis – Giving Impact</title>
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-Z4NYHCX3YC"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-Z4NYHCX3YC');
+  </script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .page-wrap { max-width: 1100px; margin: 0 auto; }
+    .page-intro { color: #4a5568; margin-bottom: 2rem; line-height: 1.6; max-width: 720px; }
+
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+    .stat-card { background: #e6f7f6; border: 1px solid #00B3A4; border-radius: 8px; padding: 1rem 1.25rem; }
+    .stat-label { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: #008f82; margin-bottom: 0.3rem; }
+    .stat-value { font-size: 1.4rem; font-weight: 700; color: #0A1A2F; }
+
+    .filters { background: #f4f6f8; border: 1px solid #dde1e7; border-radius: 8px; padding: 1.25rem 1.5rem; margin-bottom: 1.5rem; }
+    .filters-title { font-size: 0.8rem; font-weight: 700; color: #0A1A2F; margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 0.08em; }
+    .filters-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem; }
+    .filter-group label { display: block; font-size: 0.8rem; font-weight: 600; color: #4a5568; margin-bottom: 0.3rem; }
+    .filter-group select, .filter-group input { width: 100%; padding: 0.5rem 0.75rem; font-size: 0.9rem; border: 1px solid #dde1e7; border-radius: 6px; font-family: inherit; color: #0A1A2F; background: #fff; }
+    .filter-group select:focus, .filter-group input:focus { outline: none; border-color: #00B3A4; }
+    .filters-actions { display: flex; gap: 0.75rem; margin-top: 1rem; }
+    .btn-apply { background: #00B3A4; color: white; border: none; border-radius: 6px; padding: 0.55rem 1.25rem; font-size: 0.9rem; font-weight: 600; cursor: pointer; font-family: inherit; }
+    .btn-apply:hover { background: #008f82; }
+    .btn-reset { background: none; color: #4a5568; border: 1px solid #dde1e7; border-radius: 6px; padding: 0.55rem 1.25rem; font-size: 0.9rem; cursor: pointer; font-family: inherit; }
+    .btn-reset:hover { border-color: #9098a9; }
+
+    .chart-section { background: #fff; border: 1px solid #dde1e7; border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem; }
+    .chart-title { font-size: 1rem; font-weight: 700; color: #0A1A2F; margin-bottom: 0.25rem; }
+    .chart-subtitle { font-size: 0.82rem; color: #4a5568; margin-bottom: 1rem; }
+    .chart-legend { display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem; font-size: 0.8rem; }
+    .legend-item { display: flex; align-items: center; gap: 0.4rem; }
+    .legend-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+    .chart-container { position: relative; height: 420px; }
+
+    .sort-bar { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; }
+    .sort-bar label { font-size: 0.82rem; color: #4a5568; font-weight: 600; }
+    .sort-bar select { padding: 0.4rem 0.75rem; font-size: 0.85rem; border: 1px solid #dde1e7; border-radius: 6px; font-family: inherit; color: #0A1A2F; }
+    .results-count { font-size: 0.85rem; color: #4a5568; margin-left: auto; }
+    .results-count strong { color: #0A1A2F; }
+
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    thead th { background: #0A1A2F; color: white; padding: 0.75rem 1rem; text-align: left; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; white-space: nowrap; }
+    tbody tr { border-bottom: 1px solid #dde1e7; transition: background 0.1s; }
+    tbody tr:hover { background: #f4f6f8; }
+    tbody td { padding: 0.75rem 1rem; color: #0A1A2F; vertical-align: middle; }
+    .td-name { font-weight: 600; }
+    .td-name a { color: #0A1A2F; text-decoration: none; }
+    .td-name a:hover { color: #00B3A4; }
+    .size-badge { font-size: 0.68rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; padding: 0.15rem 0.5rem; border-radius: 50px; white-space: nowrap; }
+    .size-small  { background: #f0f0f0; color: #666; }
+    .size-medium { background: #e8f0fe; color: #3b5bdb; }
+    .size-large  { background: #e6f4ea; color: #2e7d32; }
+    .size-xl     { background: #fff3e0; color: #e65100; }
+    .pct-bar-wrap { display: flex; align-items: center; gap: 0.5rem; }
+    .pct-bar { height: 6px; border-radius: 50px; flex-shrink: 0; }
+
+    .load-more-wrap { text-align: center; margin-top: 1.5rem; }
+    .btn-load-more { background: none; border: 2px solid #00B3A4; color: #00B3A4; border-radius: 50px; padding: 0.65rem 2rem; font-size: 0.95rem; font-weight: 600; cursor: pointer; font-family: inherit; transition: all 0.15s; }
+    .btn-load-more:hover { background: #00B3A4; color: white; }
+
+    .loading { display: none; text-align: center; padding: 3rem 0; }
+    .loading.active { display: block; }
+    .spinner { width: 36px; height: 36px; border: 3px solid #dde1e7; border-top-color: #00B3A4; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 1rem; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading p { color: #4a5568; font-size: 0.9rem; }
+    .error-box { display: none; background: #fff5f5; border: 1px solid #fca5a5; border-radius: 8px; padding: 1rem 1.25rem; color: #b91c1c; font-size: 0.9rem; margin-bottom: 1rem; }
+    .error-box.active { display: block; }
+    .data-note { margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid #dde1e7; font-size: 0.78rem; color: #9098a9; line-height: 1.6; }
+
+    @media (max-width: 600px) {
+      .filters-grid { grid-template-columns: 1fr 1fr; }
+      .stats-grid { grid-template-columns: 1fr 1fr; }
+      .chart-container { height: 300px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="brand">Giving Impact</div>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="charity-AI-search.html">Charity AI Search</a>
+    <a href="giving-quiz.html">Giving Quiz</a>
+    <a href="cause-categories.html">Cause Categories</a>
+    <a href="kmp-analysis.html" class="active">Executive Pay</a>
+    <a href="about.html">About</a>
+  </nav>
+</header>
+
+<main>
+  <div class="page-wrap">
+    <h1>Executive Pay vs Revenue</h1>
+    <p class="page-intro">How much do Australian charities pay their key management personnel (KMP) relative to their size and revenue? This analysis uses official ACNC data. Each dot on the chart represents one charity — hover to see details.</p>
+
+    <div class="filters">
+      <div class="filters-title">Filter results</div>
+      <div class="filters-grid">
+        <div class="filter-group">
+          <label>Charity size</label>
+          <select id="filterSize">
+            <option value="">All sizes</option>
+            <option value="Small">Small</option>
+            <option value="Medium">Medium</option>
+            <option value="Large">Large</option>
+            <option value="Extra Large">Extra Large</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>State</label>
+          <select id="filterState">
+            <option value="">All states</option>
+            <option value="NSW">NSW</option>
+            <option value="VIC">VIC</option>
+            <option value="QLD">QLD</option>
+            <option value="WA">WA</option>
+            <option value="SA">SA</option>
+            <option value="TAS">TAS</option>
+            <option value="ACT">ACT</option>
+            <option value="NT">NT</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Cause / category</label>
+          <select id="filterCause">
+            <option value="">All causes</option>
+            <option value="health">Health</option>
+            <option value="education">Education</option>
+            <option value="environment">Environment</option>
+            <option value="aboriginal">Aboriginal & TSI</option>
+            <option value="disability">Disability</option>
+            <option value="youth">Youth</option>
+            <option value="aged">Aged persons</option>
+            <option value="homelessness">Homelessness</option>
+            <option value="religion">Religion</option>
+            <option value="animals">Animals</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Min revenue ($M)</label>
+          <input type="number" id="filterMinRevenue" placeholder="e.g. 1" min="0" />
+        </div>
+        <div class="filter-group">
+          <label>Max revenue ($M)</label>
+          <input type="number" id="filterMaxRevenue" placeholder="e.g. 100" min="0" />
+        </div>
+        <div class="filter-group">
+          <label>Min avg KMP pay ($K)</label>
+          <input type="number" id="filterMinPay" placeholder="e.g. 100" min="0" />
+        </div>
+        <div class="filter-group">
+          <label>Max avg KMP pay ($K)</label>
+          <input type="number" id="filterMaxPay" placeholder="e.g. 500" min="0" />
+        </div>
+      </div>
+      <div class="filters-actions">
+        <button class="btn-apply" onclick="applyFilters()">Apply filters</button>
+        <button class="btn-reset" onclick="resetFilters()">Reset</button>
+      </div>
+    </div>
+
+    <div class="error-box" id="errorBox"></div>
+    <div class="loading" id="loading"><div class="spinner"></div><p>Loading data…</p></div>
+
+    <div class="stats-grid" id="statsGrid" style="display:none">
+      <div class="stat-card"><div class="stat-label">Charities shown</div><div class="stat-value" id="statCount">—</div></div>
+      <div class="stat-card"><div class="stat-label">Avg KMP salary</div><div class="stat-value" id="statAvgPay">—</div></div>
+      <div class="stat-card"><div class="stat-label">Avg KMP % of revenue</div><div class="stat-value" id="statAvgPct">—</div></div>
+      <div class="stat-card"><div class="stat-label">Highest avg KMP salary</div><div class="stat-value" id="statHighest">—</div></div>
+    </div>
+
+    <div class="chart-section" id="chartSection" style="display:none">
+      <div class="chart-title">Revenue vs Average KMP Pay</div>
+      <div class="chart-subtitle">Each dot is one charity. Hover for details. X axis uses log scale to show small and large charities together.</div>
+      <div class="chart-legend">
+        <div class="legend-item"><div class="legend-dot" style="background:#9098a9"></div> Small</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#3b5bdb"></div> Medium</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#2e7d32"></div> Large</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#e65100"></div> Extra Large</div>
+      </div>
+      <div class="chart-container"><canvas id="scatterChart"></canvas></div>
+    </div>
+
+    <div class="sort-bar" id="sortBar" style="display:none">
+      <label>Sort by:</label>
+      <select id="sortSelect" onchange="sortAndRender()">
+        <option value="avgPay_desc">Highest avg KMP pay</option>
+        <option value="avgPay_asc">Lowest avg KMP pay</option>
+        <option value="pct_desc">Highest KMP % of revenue</option>
+        <option value="pct_asc">Lowest KMP % of revenue</option>
+        <option value="revenue_desc">Highest revenue</option>
+        <option value="revenue_asc">Lowest revenue</option>
+        <option value="name_asc">Alphabetical</option>
+      </select>
+      <div class="results-count">Showing <strong id="shownCount">0</strong> of <strong id="totalCount">0</strong> charities</div>
+    </div>
+
+    <div class="table-wrap" id="tableWrap" style="display:none">
+      <table>
+        <thead>
+          <tr>
+            <th>Charity name</th>
+            <th>Size</th>
+            <th>State</th>
+            <th>Total revenue</th>
+            <th>KMP count</th>
+            <th>Total KMP pay</th>
+            <th>Avg KMP pay</th>
+            <th>KMP % of revenue</th>
+            <th>Revenue per KMP</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+
+    <div class="load-more-wrap" id="loadMoreWrap" style="display:none">
+      <button class="btn-load-more" onclick="loadMore()">Load more results</button>
+    </div>
+
+    <div class="data-note" id="dataNote" style="display:none">
+      Data sourced from the Australian Charities and Not-for-profits Commission (ACNC) register and 2023 Annual Information Statements. KMP = Key Management Personnel. Average KMP pay = total KMP remuneration ÷ number of KMP. Only charities with complete KMP and revenue data are shown. This analysis is based on self-reported data and should be used as a guide only.
+    </div>
+  </div>
+</main>
+
+<footer>&copy; Giving Impact – by Alex Dance</footer>
+
+<script>
+  const API_URL = 'https://giving-impact-api.vercel.app/api/kmp';
+
+  let allData = [];
+  let filteredData = [];
+  let shownCount = 0;
+  const PAGE_SIZE = 50;
+  let chart = null;
+
+  const SIZE_COLORS = {
+    'Small':       '#9098a9',
+    'Medium':      '#3b5bdb',
+    'Large':       '#2e7d32',
+    'Extra Large': '#e65100',
+  };
+
+  function formatMoney(val) {
+    if (!val || isNaN(val)) return '—';
+    if (val >= 1000000000) return '$' + (val / 1000000000).toFixed(1) + 'B';
+    if (val >= 1000000)    return '$' + (val / 1000000).toFixed(1) + 'M';
+    if (val >= 1000)       return '$' + (val / 1000).toFixed(0) + 'K';
+    return '$' + Math.round(val).toLocaleString();
+  }
+
+  function sizeClass(size) {
+    if (!size) return '';
+    const s = size.toLowerCase();
+    if (s.includes('extra')) return 'size-xl';
+    if (s.includes('large')) return 'size-large';
+    if (s.includes('medium')) return 'size-medium';
+    return 'size-small';
+  }
+
+  async function fetchData() {
+    document.getElementById('loading').classList.add('active');
+    document.getElementById('errorBox').classList.remove('active');
+    ['statsGrid','chartSection','sortBar','tableWrap','loadMoreWrap','dataNote']
+      .forEach(id => document.getElementById(id).style.display = 'none');
+
+    const body = {
+      size:       document.getElementById('filterSize').value,
+      state:      document.getElementById('filterState').value,
+      cause:      document.getElementById('filterCause').value,
+      minRevenue: document.getElementById('filterMinRevenue').value,
+      maxRevenue: document.getElementById('filterMaxRevenue').value,
+      minPay:     document.getElementById('filterMinPay').value,
+      maxPay:     document.getElementById('filterMaxPay').value,
+    };
+
+    try {
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      const json = await response.json();
+
+      if (!response.ok || json.error) {
+        document.getElementById('errorBox').textContent = json.error || 'Failed to load data.';
+        document.getElementById('errorBox').classList.add('active');
+        return;
+      }
+
+      allData = (json.data || []).map(r => {
+        const totalPay  = parseFloat(r['Total paid to Key Management Personnel']) || 0;
+        const kmpCount  = parseFloat(r['Number of Key Management Personnel']) || 1;
+        const revenue   = parseFloat(r['total revenue']) || 0;
+        const avgPay    = kmpCount > 0 ? totalPay / kmpCount : 0;
+        const pct       = revenue > 0 ? (totalPay / revenue) * 100 : 0;
+        const revPerKmp = kmpCount > 0 ? revenue / kmpCount : 0;
+        return { ...r, totalPay, kmpCount, revenue, avgPay, pct, revPerKmp };
+      }).filter(r => r.avgPay > 0 && r.revenue > 0);
+
+      if (allData.length === 0) {
+        document.getElementById('errorBox').textContent = 'No results found — try broadening your filters.';
+        document.getElementById('errorBox').classList.add('active');
+        return;
+      }
+
+      filteredData = [...allData];
+      shownCount = 0;
+      renderStats();
+      renderChart();
+      sortAndRender();
+
+      document.getElementById('statsGrid').style.display = 'grid';
+      document.getElementById('chartSection').style.display = 'block';
+      document.getElementById('sortBar').style.display = 'flex';
+      document.getElementById('tableWrap').style.display = 'block';
+      document.getElementById('dataNote').style.display = 'block';
+
+    } catch (err) {
+      document.getElementById('errorBox').textContent = 'Could not connect — please try again.';
+      document.getElementById('errorBox').classList.add('active');
+    } finally {
+      document.getElementById('loading').classList.remove('active');
+    }
+  }
+
+  function renderStats() {
+    const pays = filteredData.map(r => r.avgPay);
+    const pcts = filteredData.map(r => r.pct);
+    const avgPay  = pays.reduce((a, b) => a + b, 0) / pays.length;
+    const avgPct  = pcts.reduce((a, b) => a + b, 0) / pcts.length;
+    const highest = Math.max(...pays);
+    document.getElementById('statCount').textContent   = filteredData.length.toLocaleString();
+    document.getElementById('statAvgPay').textContent  = formatMoney(avgPay);
+    document.getElementById('statAvgPct').textContent  = avgPct.toFixed(1) + '%';
+    document.getElementById('statHighest').textContent = formatMoney(highest);
+  }
+
+  function renderChart() {
+    const ctx = document.getElementById('scatterChart').getContext('2d');
+    if (chart) chart.destroy();
+
+    const datasets = Object.entries(SIZE_COLORS).map(([size, color]) => ({
+      label: size,
+      data: filteredData
+        .filter(r => r['Charity_Size'] === size)
+        .map(r => ({
+          x: r.revenue,
+          y: r.avgPay,
+          name: r['Charity_Legal_Name'],
+          kmpCount: r.kmpCount,
+          pct: r.pct,
+          state: r['State'],
+        })),
+      backgroundColor: color + 'bb',
+      pointRadius: 5,
+      pointHoverRadius: 8,
+    }));
+
+    chart = new Chart(ctx, {
+      type: 'scatter',
+      data: { datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: {
+            type: 'logarithmic',
+            title: { display: true, text: 'Total Revenue (log scale)', color: '#4a5568', font: { size: 12 } },
+            ticks: { callback: v => formatMoney(v), color: '#9098a9' },
+            grid: { color: '#f0f0f0' },
+          },
+          y: {
+            title: { display: true, text: 'Average KMP Pay', color: '#4a5568', font: { size: 12 } },
+            ticks: { callback: v => formatMoney(v), color: '#9098a9' },
+            grid: { color: '#f0f0f0' },
+          },
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: ctx => {
+                const d = ctx.raw;
+                return [
+                  d.name,
+                  `Revenue: ${formatMoney(d.x)}`,
+                  `Avg KMP pay: ${formatMoney(d.y)}`,
+                  `KMP count: ${d.kmpCount}`,
+                  `KMP % of revenue: ${d.pct.toFixed(1)}%`,
+                  `State: ${d.state || '—'}`,
+                ];
+              },
+            },
+            backgroundColor: '#0A1A2F',
+            bodyColor: '#fff',
+            padding: 10,
+            displayColors: false,
+          },
+        },
+      },
+    });
+  }
+
+  function sortAndRender() {
+    const sort = document.getElementById('sortSelect').value;
+    filteredData.sort((a, b) => {
+      switch (sort) {
+        case 'avgPay_desc':  return b.avgPay - a.avgPay;
+        case 'avgPay_asc':   return a.avgPay - b.avgPay;
+        case 'pct_desc':     return b.pct - a.pct;
+        case 'pct_asc':      return a.pct - b.pct;
+        case 'revenue_desc': return b.revenue - a.revenue;
+        case 'revenue_asc':  return a.revenue - b.revenue;
+        case 'name_asc':     return (a['Charity_Legal_Name'] || '').localeCompare(b['Charity_Legal_Name'] || '');
+        default:             return b.avgPay - a.avgPay;
+      }
+    });
+    shownCount = 0;
+    document.getElementById('tableBody').innerHTML = '';
+    loadMore();
+  }
+
+  function loadMore() {
+    const rows = filteredData.slice(shownCount, shownCount + PAGE_SIZE);
+    const tbody = document.getElementById('tableBody');
+    rows.forEach(r => { tbody.innerHTML += renderRow(r); });
+    shownCount += rows.length;
+    document.getElementById('shownCount').textContent = shownCount.toLocaleString();
+    document.getElementById('totalCount').textContent = filteredData.length.toLocaleString();
+    document.getElementById('loadMoreWrap').style.display = shownCount < filteredData.length ? 'block' : 'none';
+  }
+
+  function renderRow(r) {
+    const name     = r['Charity_Legal_Name'] || 'Unknown';
+    const website  = r['Charity_Website'];
+    const size     = r['Charity_Size'] || '';
+    const state    = r['State'] || '';
+    const pctBarW  = Math.min(r.pct * 6, 80);
+    const pctCol   = r.pct > 10 ? '#e65100' : r.pct > 5 ? '#FFD166' : '#00B3A4';
+    const nameHtml = website
+      ? `<a href="${website.startsWith('http') ? website : 'https://' + website}" target="_blank" rel="noopener">${name}</a>`
+      : name;
+
+    return `<tr>
+      <td class="td-name">${nameHtml}</td>
+      <td><span class="size-badge ${sizeClass(size)}">${size}</span></td>
+      <td>${state}</td>
+      <td>${formatMoney(r.revenue)}</td>
+      <td style="text-align:center">${r.kmpCount}</td>
+      <td>${formatMoney(r.totalPay)}</td>
+      <td><strong>${formatMoney(r.avgPay)}</strong></td>
+      <td>
+        <div class="pct-bar-wrap">
+          <div class="pct-bar" style="width:${pctBarW}px;background:${pctCol}"></div>
+          ${r.pct.toFixed(1)}%
+        </div>
+      </td>
+      <td>${formatMoney(r.revPerKmp)}</td>
+    </tr>`;
+  }
+
+  function applyFilters() { fetchData(); }
+
+  function resetFilters() {
+    ['filterSize','filterState','filterCause'].forEach(id => document.getElementById(id).value = '');
+    ['filterMinRevenue','filterMaxRevenue','filterMinPay','filterMaxPay'].forEach(id => document.getElementById(id).value = '');
+    fetchData();
+  }
+
+  fetchData();
+</script>
+
+</body>
+</html>
